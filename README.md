@@ -124,6 +124,7 @@ DSH 在安装前会对 GitHub 做一次连通性检查（默认 5 秒），网�
 - `feishu_status`、`feishu_find_chats`、`feishu_search_docs`、`feishu_read_doc`：lark-cli 1.0.98 + 飞书自建应用，全部通过。
 - `feishu_base_tables` / `feishu_base_fields` / `feishu_base_list_records`：对真实多维表格读通（字段名 → 记录对象）。
 - `feishu_send_message`、`feishu_calendar_create`：`dryRun` 通过；真实调用要求对应 scope 与会话成员关系。
+- **多维表格写入全链路验证过**：临时新建一个 Base（Tasks 表）→ `feishu_base_upsert_record` 新建记录 → `feishu_base_list_records` 读回 → 按 `recordId` 把 Status 更新为 Done → 再读回确认 → 删除测试 Base。临时数据已清理。
 - **日历三件套在真实账号上全链路验证过**：建日程 → `feishu_calendar_agenda` 看到该日程 → `feishu_calendar_freebusy` 显示该时段被占用 → 删除后 agenda 回到「日程清空」。scope 授权（device flow）也走通了。
 - 设置接口 `/api/dsh-feishu/status|settings|test` 已实测：只读模式一键从 12 个工具切到 9 个、再切回来；`client.js` 的插槽注册在真实页面里验证过（注册为「飞书」设置页）。受限于环境没有浏览器控制，页面视觉效果未人工确认。
 - 日历读接口需要先补 `calendar:calendar.event:read`，未授权时报错会带出 lark-cli 的授权命令。

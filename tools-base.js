@@ -299,7 +299,13 @@ export function buildBaseTools(runtime, settings) {
 
       const parsed = await runCliJson(runtime, command, exec)
       const data = parsed.data ?? {}
-      const savedId = str(data.record_id ?? data.record?.record_id ?? data.records?.[0]?.record_id ?? recordId)
+      const savedId = str(
+        data.record_id
+        ?? data.record?.record_id
+        ?? data.record?.record_id_list?.[0]
+        ?? data.records?.[0]?.record_id
+        ?? recordId,
+      )
       const action = recordId !== '' ? 'Updated' : 'Created'
       return {
         ok: parsed.ok !== false,

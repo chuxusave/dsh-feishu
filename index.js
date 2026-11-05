@@ -17,7 +17,7 @@ import { buildCalendarTools } from './tools-calendar.js'
 import { buildMessagingTools } from './tools-messaging.js'
 
 /** Bundle version reported to the settings page. */
-const VERSION = '0.2.2'
+const VERSION = '0.2.3'
 
 /** Bundle row name; must match `package.json` `name`. */
 export const name = 'dsh-feishu'
