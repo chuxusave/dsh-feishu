@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Feishu / Lark",
+    "description": "Send Feishu messages, search group chats and cloud docs, and read documents through your locally authenticated lark-cli."
+  }
+}

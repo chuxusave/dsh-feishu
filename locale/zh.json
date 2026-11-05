@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "飞书（lark-cli）",
+    "description": "通过本地已登录的 lark-cli 发送飞书消息、搜索群聊与云文档、读取文档正文。"
+  }
+}

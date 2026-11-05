@@ -1,0 +1,43 @@
+{
+  "name": "dsh-feishu",
+  "version": "0.1.0",
+  "description": "Feishu/Lark tools for DeepSeek Harness: send messages, search chats and docs, read documents — backed by your local lark-cli.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "feishu",
+    "lark",
+    "lark-cli",
+    "plugin",
+    "bundle"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chuxusave/dsh-feishu.git"
+  }
+}

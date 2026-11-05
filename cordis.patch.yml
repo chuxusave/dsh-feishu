@@ -1,0 +1,4 @@
+- insert:
+    - id: feishu
+      name: dsh-feishu
+      config: {}
