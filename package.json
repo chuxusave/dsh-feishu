@@ -1,17 +1,25 @@
 {
   "name": "dsh-feishu",
-  "version": "0.1.0",
-  "description": "Feishu/Lark tools for DeepSeek Harness: send messages, search chats and docs, read documents — backed by your local lark-cli.",
+  "version": "0.2.0",
+  "description": "Feishu/Lark tools for DeepSeek Harness: messages, docs, Base (多维表格) records and calendar — backed by your local lark-cli, with a Web settings page.",
   "type": "module",
   "main": "index.js",
   "exports": {
     ".": "./index.js",
+    "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
   "files": [
     "index.js",
+    "cli.js",
+    "settings.js",
+    "routes.js",
+    "tools-messaging.js",
+    "tools-base.js",
+    "tools-calendar.js",
+    "client.js",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
@@ -21,6 +29,11 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [],
+      "immediately": true
     }
   },
   "keywords": [
@@ -29,6 +42,9 @@
     "feishu",
     "lark",
     "lark-cli",
+    "bitable",
+    "base",
+    "calendar",
     "plugin",
     "bundle"
   ],
