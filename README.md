@@ -45,6 +45,27 @@
 
 装完即生效（live profile），重启 DSH 也会保留。
 
+### 如果 `github:` 安装报连接超时
+
+DSH 在安装前会对 GitHub 做一次连通性检查（默认 5 秒），网络慢或被代理拦截时会报
+`connection to github.com timed out after 5000ms`。两种办法：
+
+1. 调大超时（profile 的 `cordis.patch.yml`）：
+
+   ```yaml
+   - id: plugin-manager
+     name: "@deepseek-ai/dsh-plugin-manager"
+     config:
+       githubConnectionTimeoutMs: 30000
+   ```
+
+2. 或克隆后按本地路径安装：
+
+   ```bash
+   git clone https://github.com/chuxusave/dsh-feishu.git
+   # 把 clone 出来的目录绝对路径作为 install_bundle 的 target
+   ```
+
 ## 配置（可选）
 
 默认什么都不用配。要改就在 profile 的 `cordis.patch.yml` 里覆盖这一行：
