@@ -20,7 +20,7 @@ import { buildSheetsTools } from './tools-sheets.js'
 import { buildTaskTools } from './tools-tasks.js'
 
 /** Bundle version reported to the settings page. */
-const VERSION = '0.3.0'
+const VERSION = '0.3.1'
 
 /** Bundle row name; must match `package.json` `name`. */
 export const name = 'dsh-feishu'

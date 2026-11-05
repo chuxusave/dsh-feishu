@@ -13,7 +13,7 @@
 | 工具 | 作用 | 风险 |
 | --- | --- | --- |
 | `feishu_status` | 体检：`lark-cli` 是否可达、bot / user 身份是否就绪 | 只读 |
-| `feishu_find_chats` | 按关键字搜群，或列出已加入的会话，拿到 `chat_id` | 只读 |
+| `feishu_find_chats` | 按关键字搜群，或列出已加入的会话，拿到 `chat_id`；外部租户的群会标 `[外部群]`（自建应用发不进去） | 只读 |
 | `feishu_search_docs` | 搜云文档 / Wiki / 表格 / 多维表格，返回标题和链接 | 只读 |
 | `feishu_read_doc` | 把一个 DOCX 或 Wiki 文档读成 Markdown | 只读 |
 | `feishu_send_message` | 发文本 / Markdown 到群或私聊，支持 `dryRun` 预览 | 写 |

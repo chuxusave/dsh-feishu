@@ -89,7 +89,7 @@ export function buildMessagingTools(runtime, settings) {
       description:
         'Find Feishu group chats (and, with the user identity, single chats) and return their chat_id. ' +
         'Pass `query` to search by name or member, or omit it to list chats the current identity has joined. ' +
-        'Use the returned id with feishu_send_message.',
+        'Use the returned id with feishu_send_message; chats marked external live in another tenant and cannot be messaged by a self-built app.',
       parameters: {
         type: 'object',
         additionalProperties: false,
@@ -120,11 +120,12 @@ export function buildMessagingTools(runtime, settings) {
               items: {
                 type: 'object',
                 additionalProperties: false,
-                required: ['id', 'name', 'mode'],
+                required: ['id', 'name', 'mode', 'external'],
                 properties: {
                   id: { type: 'string' },
                   name: { type: 'string' },
                   mode: { type: 'string' },
+                  external: { type: 'boolean' },
                 },
               },
             },
@@ -134,7 +135,7 @@ export function buildMessagingTools(runtime, settings) {
           type: 'text',
           text: value.count === 0
             ? 'No Feishu chats matched.'
-            : [`Found ${value.count} Feishu chat(s):`, ...value.chats.map((c) => `- ${c.name || '(no name)'} — ${c.id}${c.mode ? ` (${c.mode})` : ''}`)].join('\n'),
+            : [`Found ${value.count} Feishu chat(s):`, ...value.chats.map((c) => `- ${c.name || '(no name)'} — ${c.id}${c.mode ? ` (${c.mode})` : ''}${c.external ? ' [外部群：自建应用无法发消息]' : ''}`)].join('\n'),
         }],
       },
       async execute(args, exec) {
@@ -152,6 +153,7 @@ export function buildMessagingTools(runtime, settings) {
           id: str(chat?.chat_id ?? chat?.id),
           name: str(chat?.name),
           mode: str(chat?.chat_mode ?? chat?.mode),
+          external: chat?.external === true,
         }))
         return { count: chats.length, chats }
       },
