@@ -44,6 +44,32 @@ function normalizeInterval(item) {
 }
 
 /**
+ * Flatten `+freebusy` output into interval rows plus their user. lark-cli nests
+ * them under `data.users[].free|busy|…`; a flat array is also accepted.
+ *
+ * @param {unknown} data - parsed `data` envelope.
+ * @returns {Array<{ row: unknown, user: string }>} rows with owner open_id.
+ */
+function intervalRows(data) {
+  const keys = ['busy', 'free', 'common_free', 'raw_busy', 'intervals', 'items', 'timeblocks']
+  if (Array.isArray(data)) return data.map((row) => ({ row, user: '' }))
+  const users = Array.isArray(data?.users) ? data.users : []
+  if (users.length > 0) {
+    const rows = []
+    for (const user of users) {
+      const userId = str(user?.user_id ?? user?.open_id ?? user?.id)
+      for (const key of keys) {
+        if (Array.isArray(user?.[key])) {
+          for (const row of user[key]) rows.push({ row, user: userId })
+        }
+      }
+    }
+    return rows
+  }
+  return firstArray(data, keys).map((row) => ({ row, user: '' }))
+}
+
+/**
  * Build the calendar tools for one settings snapshot.
  *
  * @param {ReturnType<import('./cli.js').buildRuntime>} runtime - runtime facts.
@@ -118,9 +144,10 @@ export function buildCalendarTools(runtime, settings) {
         const command = ['calendar', '+agenda', '--json', ...commonTimeFlags(args), ...identityArgs(runtime, args.as)]
         const parsed = await runCliJson(runtime, command, exec)
         const data = parsed.data ?? {}
-        const items = firstArray(data, EVENT_KEYS)
+        // `+agenda` returns the event array as `data` itself; other versions nest it.
+        const items = Array.isArray(data) ? data : firstArray(data, EVENT_KEYS)
         const events = items.map(normalizeEvent)
-        const note = events.length === 0 && Object.keys(data).length > 0
+        const note = events.length === 0 && !Array.isArray(data) && Object.keys(data).length > 0
           ? `raw: ${compactJson(data)}`
           : ''
         return { count: events.length, events, note }
@@ -202,9 +229,14 @@ export function buildCalendarTools(runtime, settings) {
 
         const parsed = await runCliJson(runtime, command, exec)
         const data = parsed.data ?? {}
-        const rows = firstArray(data, ['items', 'intervals', 'busy', 'free', 'common_free', 'timeblocks'])
-        const intervals = rows.map(normalizeInterval)
-        const note = intervals.length === 0 && Object.keys(data).length > 0 ? `raw: ${compactJson(data)}` : ''
+        const rows = intervalRows(data)
+        const intervals = rows.map(({ row, user }) => {
+          const interval = normalizeInterval(row)
+          return { ...interval, user: interval.user || user }
+        })
+        const note = intervals.length === 0 && !Array.isArray(data) && Object.keys(data).length > 0
+          ? `raw: ${compactJson(data)}`
+          : ''
         return { count: intervals.length, intervals, note }
       },
     },
