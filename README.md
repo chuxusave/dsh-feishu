@@ -35,6 +35,32 @@
 | `feishu_calendar_freebusy` | 查忙闲 / 空闲窗口（busy、free、common_free、raw_busy） | 只读 |
 | `feishu_calendar_create` | 建日程并邀请参会人，支持 `dryRun` | 写 |
 
+**表格（Sheets）**
+
+| 工具 | 作用 | 风险 |
+| --- | --- | --- |
+| `feishu_sheets_info` | 列出表格的子表（sheet_id、标题、行列数），做任何表格操作前先看 | 只读 |
+| `feishu_sheets_read` | 按 A1 范围把表格读成 CSV | 只读 |
+| `feishu_sheets_create` | 新建表格，可带初始 2D 数据 | 写 |
+| `feishu_sheets_write` | 把 CSV 从指定单元格粘进表格（支持公式） | 写 |
+
+**待办（Tasks）**
+
+| 工具 | 作用 | 风险 |
+| --- | --- | --- |
+| `feishu_task_list` | 列出分配给我的待办，可按完成状态/标题过滤 | 只读 |
+| `feishu_task_create` | 新建待办（截止时间、描述、指派人） | 写 |
+| `feishu_task_complete` | 把一条待办标记完成 | 写 |
+
+**审批（Approvals，只读）**
+
+| 工具 | 作用 | 风险 |
+| --- | --- | --- |
+| `feishu_approval_tasks` | 查我的审批任务：待办 / 已处理 / 未读|已读通知 | 只读 |
+| `feishu_approval_instance` | 查单个审批实例详情 | 只读 |
+
+> 审批只开放读：批准/拒绝仍在飞书里由你本人操作。
+
 所有工具都接受 `as` 参数（`auto` / `bot` / `user`）覆盖默认身份。
 
 ## 设置页
@@ -44,7 +70,7 @@
 - 查看 `lark-cli` 是否就绪、bot / user / API 三项检查结果、实际解析到的 CLI 路径
 - 改默认身份（auto / bot / user）、CLI 路径、超时、工作目录
 - 只读模式：一键关掉所有写工具（发消息、写 Base、建日程直接不注册）
-- 分别开关「发送消息」「写多维表格」「创建日程」
+- 分别开关「发送消息」「写多维表格」「创建日程」「写表格」「创建/完成待办」
 - 「测试连接」直接跑一次 `lark-cli doctor`
 
 保存后**立即生效**，不用重启 DSH。设置写在 `~/.dsh/dsh-feishu.settings.json`（有 `DSH_PROFILE_DIR` 时写在该 profile 目录，权限 0600），也可以手动编辑。
@@ -63,18 +89,21 @@
    ```
 4. 发消息时：应用需具备 `im:message:send_as_bot` 权限，且机器人已在目标会话里。
 
-### 日历权限
+### 额外权限（scope）
 
-日历默认没有授权，第一次调用会返回 lark-cli 的原始提示，照着执行即可：
+日历、审批、部分写入默认没有授权，第一次调用会返回 lark-cli 的原始提示，照着执行即可：
 
 ```bash
-# user 身份：读 + 建日程
+# user 身份：日历读 + 建日程
 lark-cli auth login --scope "calendar:calendar.event:read calendar:calendar.event:create calendar:calendar.event:update"
+
+# user 身份：读我的审批任务（feishu_approval_tasks / _instance 需要）
+lark-cli auth login --scope "approval:task:read"
 ```
 
-bot 身份则需要在飞书开发者后台给应用申请日历 scope（工具报错里会给出带 clientID 的申请链接）。
+bot 身份则需要在飞书开发者后台给应用申请对应 scope（工具报错里会给出带 clientID 的申请链接）。
 
-多维表格的写入权限同理：按 `feishu_base_upsert_record` 返回的 missing scope 提示补充授权。
+多维表格 / 表格 / 待办的写入权限同理：按工具返回的 missing scope 提示补充授权。
 
 ## 安装
 
@@ -124,6 +153,9 @@ DSH 在安装前会对 GitHub 做一次连通性检查（默认 5 秒），网�
 - `feishu_status`、`feishu_find_chats`、`feishu_search_docs`、`feishu_read_doc`：lark-cli 1.0.98 + 飞书自建应用，全部通过。
 - `feishu_base_tables` / `feishu_base_fields` / `feishu_base_list_records`：对真实多维表格读通（字段名 → 记录对象）。
 - `feishu_send_message`、`feishu_calendar_create`：`dryRun` 通过；真实调用要求对应 scope 与会话成员关系。
+- **表格（Sheets）全链路验证过**：`feishu_sheets_create` 建表 → `feishu_sheets_info` 列出子表 → `feishu_sheets_write` 从 A4 写入两行 → `feishu_sheets_read` 读回一致 → 删除测试表格。
+- **待办（Tasks）全链路验证过**：`feishu_task_list` 读出真实待办 → `feishu_task_create` 建测试待办（返回 guid）→ `feishu_task_complete` 标记完成 → 删除测试待办。
+- **审批（Approvals）**：只读工具已就位；当前账号缺 `approval:task:read` scope，报错会带出授权命令。
 - **多维表格写入全链路验证过**：临时新建一个 Base（Tasks 表）→ `feishu_base_upsert_record` 新建记录 → `feishu_base_list_records` 读回 → 按 `recordId` 把 Status 更新为 Done → 再读回确认 → 删除测试 Base。临时数据已清理。
 - **日历三件套在真实账号上全链路验证过**：建日程 → `feishu_calendar_agenda` 看到该日程 → `feishu_calendar_freebusy` 显示该时段被占用 → 删除后 agenda 回到「日程清空」。scope 授权（device flow）也走通了。
 - 设置接口 `/api/dsh-feishu/status|settings|test` 已实测：只读模式一键从 12 个工具切到 9 个、再切回来；`client.js` 的插槽注册在真实页面里验证过（注册为「飞书」设置页）。受限于环境没有浏览器控制，页面视觉效果未人工确认。

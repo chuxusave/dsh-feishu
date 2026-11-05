@@ -1,7 +1,7 @@
 {
   "name": "dsh-feishu",
-  "version": "0.2.3",
-  "description": "Feishu/Lark tools for DeepSeek Harness: messages, docs, Base (多维表格) records and calendar — backed by your local lark-cli, with a Web settings page.",
+  "version": "0.3.0",
+  "description": "Feishu/Lark tools for DeepSeek Harness: messages, docs, Base (多维表格), calendar, sheets, tasks and approvals — backed by your local lark-cli, with a Web settings page.",
   "type": "module",
   "main": "index.js",
   "exports": {
@@ -24,7 +24,10 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "tools-sheets.js",
+    "tools-tasks.js",
+    "tools-approval.js"
   ],
   "dsh": {
     "bundle": {

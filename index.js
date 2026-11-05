@@ -14,10 +14,13 @@ import { registerRoutes } from './routes.js'
 import { loadSettings, saveSettings } from './settings.js'
 import { buildBaseTools } from './tools-base.js'
 import { buildCalendarTools } from './tools-calendar.js'
+import { buildApprovalTools } from './tools-approval.js'
 import { buildMessagingTools } from './tools-messaging.js'
+import { buildSheetsTools } from './tools-sheets.js'
+import { buildTaskTools } from './tools-tasks.js'
 
 /** Bundle version reported to the settings page. */
-const VERSION = '0.2.3'
+const VERSION = '0.3.0'
 
 /** Bundle row name; must match `package.json` `name`. */
 export const name = 'dsh-feishu'
@@ -45,6 +48,9 @@ export function apply(ctx) {
       ...buildMessagingTools(state.runtime, state.settings),
       ...buildBaseTools(state.runtime, state.settings),
       ...buildCalendarTools(state.runtime, state.settings),
+      ...buildSheetsTools(state.runtime, state.settings),
+      ...buildTaskTools(state.runtime, state.settings),
+      ...buildApprovalTools(state.runtime, state.settings),
     ]
     for (const definition of definitions) state.disposers.push(ctx.tools.register(definition))
     return definitions.length

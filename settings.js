@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   allowBaseWrite: true,
   allowCalendarWrite: true,
   allowSendMessage: true,
+  allowSheetsWrite: true,
+  allowTaskWrite: true,
 })
 
 /** Directory that owns the settings file: the profile when there is one. */
@@ -58,6 +60,8 @@ export function sanitizeSettings(raw) {
     allowBaseWrite: input.allowBaseWrite !== false,
     allowCalendarWrite: input.allowCalendarWrite !== false,
     allowSendMessage: input.allowSendMessage !== false,
+    allowSheetsWrite: input.allowSheetsWrite !== false,
+    allowTaskWrite: input.allowTaskWrite !== false,
   }
 }
 

@@ -291,6 +291,20 @@ window.__ModuleLoader__.load({
             disabled: disabled || readOnly,
             onChange: set('allowCalendarWrite'),
           }),
+          h(Checkbox, {
+            text: '允许写表格',
+            hint: 'feishu_sheets_create / feishu_sheets_write 会新建表格或改写单元格。',
+            checked: form.allowSheetsWrite === true,
+            disabled: disabled || readOnly,
+            onChange: set('allowSheetsWrite'),
+          }),
+          h(Checkbox, {
+            text: '允许创建/完成待办',
+            hint: 'feishu_task_create / feishu_task_complete 会改你的飞书待办。',
+            checked: form.allowTaskWrite === true,
+            disabled: disabled || readOnly,
+            onChange: set('allowTaskWrite'),
+          }),
         ),
 
         h('div', { style: { marginBottom: 14 } },
