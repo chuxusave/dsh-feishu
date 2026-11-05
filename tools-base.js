@@ -4,7 +4,7 @@
  * @module dsh-feishu/tools-base
  */
 
-import { identityArgs, requireString, runCliJson, str } from './cli.js'
+import { clip, identityArgs, requireString, runCliJson, str } from './cli.js'
 
 const MAX_RECORDS = 200
 
@@ -187,12 +187,17 @@ export function buildBaseTools(runtime, settings) {
             records: { type: 'array', items: { type: 'object', additionalProperties: true } },
           },
         },
-        render: (_args, value) => [{
-          type: 'text',
-          text: value.count === 0
-            ? 'No records matched.'
-            : `Read ${value.count} record(s)${value.hasMore ? ' (more available — increase offset)' : ''}. Fields: ${value.fields.join(', ')}.`,
-        }],
+        render: (_args, value) => {
+          if (value.count === 0) return [{ type: 'text', text: 'No records matched.' }]
+          const json = clip(JSON.stringify(value.records), 20_000)
+          return [{
+            type: 'text',
+            text: [
+              `Read ${value.count} record(s)${value.hasMore ? ' — more available, pass a larger offset' : ''}. Fields: ${value.fields.join(', ')}.`,
+              json,
+            ].join('\n'),
+          }]
+        },
       },
       async execute(args, exec) {
         const limit = Number.isFinite(args.limit) ? Math.min(Math.max(Math.floor(args.limit), 1), MAX_RECORDS) : 20
