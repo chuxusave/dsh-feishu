@@ -5,6 +5,10 @@
  * @module dsh-feishu/tools-messaging
  */
 
+import { execFile } from 'node:child_process'
+import { existsSync, unlinkSync } from 'node:fs'
+import { isAbsolute, join, relative } from 'node:path'
+
 import {
   clip,
   identityArgs,
@@ -17,6 +21,70 @@ import {
 
 const MAX_LIST_ITEMS = 100
 const MAX_DOC_CHARS = 200_000
+
+/** Whether a media argument is already a lark key or a remote URL. */
+function isRemoteRef(value) {
+  return /^https?:\/\//i.test(value) || /^(img|file)_[A-Za-z0-9]+$/.test(value)
+}
+
+/**
+ * Turn a media argument into the cwd-relative path lark-cli accepts. Keys and
+ * URLs pass through; local paths must live inside the configured workdir
+ * because lark-cli rejects absolute and parent-relative paths.
+ *
+ * @param {ReturnType<import('./cli.js').buildRuntime>} runtime - runtime facts.
+ * @param {string} value - path, key or URL.
+ * @param {string} label - field name for diagnostics.
+ * @returns {string} the argument to hand to lark-cli.
+ */
+function mediaPath(runtime, value, label) {
+  if (isRemoteRef(value)) return value
+  const absolute = isAbsolute(value) ? value : join(runtime.workdir, value)
+  if (!existsSync(absolute)) throw new Error(`${label} does not exist: ${absolute}`)
+  const rel = relative(runtime.workdir, absolute)
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+    throw new Error(
+      `${label} must live inside the working directory ${runtime.workdir} (lark-cli rejects absolute and parent paths). ` +
+      'Move the file there, or change `workdir` in the plugin settings.',
+    )
+  }
+  return rel
+}
+
+/**
+ * Extract a first-frame JPEG cover for a local video, because
+ * `im +messages-send --video` requires `--video-cover`.
+ *
+ * @param {ReturnType<import('./cli.js').buildRuntime>} runtime - runtime facts.
+ * @param {string} videoRel - workdir-relative video path.
+ * @returns {Promise<{ rel: string, cleanup: () => void }>}
+ */
+function makeVideoCover(runtime, videoRel) {
+  const name = `.dsh-feishu-cover-${Date.now()}.jpg`
+  const absolute = join(runtime.workdir, name)
+  const cleanup = () => {
+    try {
+      unlinkSync(absolute)
+    } catch {
+      // best effort
+    }
+  }
+  return new Promise((resolve, reject) => {
+    execFile('ffmpeg', ['-ss', '1', '-i', videoRel, '-frames:v', '1', '-vf', 'scale=640:-2', '-y', name], {
+      cwd: runtime.workdir,
+      timeout: 20_000,
+    }, (error) => {
+      if (error || !existsSync(absolute)) {
+        cleanup()
+        reject(new Error(
+          'could not generate a video cover with ffmpeg (install ffmpeg, or pass `videoCover` explicitly).',
+        ))
+        return
+      }
+      resolve({ rel: name, cleanup })
+    })
+  })
+}
 
 /** Clamp a repeated-list result. */
 function take(items) {
@@ -274,14 +342,20 @@ export function buildMessagingTools(runtime, settings) {
     name: 'feishu_send_message',
     description:
       'Send a Feishu message to a chat (chat_id, oc_…) or a direct message (user open_id, ou_…). ' +
-      'Pass `text` for plain text or `markdown` for rich text. Prefer `dryRun: true` on the first call to preview the ' +
-      'request without sending. The bot identity must already be a member of the target chat.',
+      'Pass exactly one of `text`, `markdown`, `image`, `file` or `video`. Media accepts a lark key/URL, or a local path ' +
+      'inside the configured working directory; a local video without `videoCover` gets a first-frame cover generated with ffmpeg. ' +
+      'Prefer `dryRun: true` on the first call. The bot identity must already be a member of the target chat, and external-tenant ' +
+      'chats cannot be messaged by a self-built app.',
     parameters: {
       type: 'object',
       additionalProperties: false,
       properties: {
-        text: { type: 'string', description: 'Plain-text message body. Mutually exclusive with `markdown`.' },
-        markdown: { type: 'string', description: 'Markdown/rich-text body sent as a post message. Mutually exclusive with `text`.' },
+        text: { type: 'string', description: 'Plain-text body. Send exactly one content kind.' },
+        markdown: { type: 'string', description: 'Markdown/rich-text body sent as a post message.' },
+        image: { type: 'string', description: 'Image key (img_…), URL, or local path inside the working directory.' },
+        file: { type: 'string', description: 'File key (file_…), URL, or local path inside the working directory.' },
+        video: { type: 'string', description: 'Video key (file_…), URL, or local path inside the working directory.' },
+        videoCover: { type: 'string', description: 'Cover image for the video (key/URL/local path). Generated with ffmpeg when omitted.' },
         chatId: { type: 'string', description: 'Target chat_id (oc_…). Mutually exclusive with `userId`.' },
         userId: { type: 'string', description: 'Target user open_id (ou_…) for a direct message. Mutually exclusive with `chatId`.' },
         as: {
@@ -310,32 +384,70 @@ export function buildMessagingTools(runtime, settings) {
     async execute(args, exec) {
       const text = str(args.text).trim()
       const markdown = str(args.markdown).trim()
+      const image = str(args.image).trim()
+      const file = str(args.file).trim()
+      const video = str(args.video).trim()
       const chatId = str(args.chatId).trim()
       const userId = str(args.userId).trim()
-      if (text === '' && markdown === '') throw new Error('one of `text` or `markdown` is required')
-      if (text !== '' && markdown !== '') throw new Error('`text` and `markdown` are mutually exclusive')
       if (chatId === '' && userId === '') throw new Error('one of `chatId` or `userId` is required')
       if (chatId !== '' && userId !== '') throw new Error('`chatId` and `userId` are mutually exclusive')
+
+      const kinds = [text, markdown, image, file, video].filter((value) => value !== '')
+      if (kinds.length === 0) throw new Error('pass one of `text`, `markdown`, `image`, `file` or `video`')
+      if (kinds.length > 1) throw new Error('pass exactly one content kind: `text`, `markdown`, `image`, `file` or `video`')
 
       const command = ['im', '+messages-send']
       if (chatId !== '') command.push('--chat-id', chatId)
       if (userId !== '') command.push('--user-id', userId)
-      command.push(markdown !== '' ? '--markdown' : '--text', markdown !== '' ? markdown : text)
+
+      let kind = 'text'
+      let cleanup = () => {}
+      if (text !== '') {
+        kind = 'text'
+        command.push('--text', text)
+      } else if (markdown !== '') {
+        kind = 'markdown'
+        command.push('--markdown', markdown)
+      } else if (image !== '') {
+        kind = 'image'
+        command.push('--image', mediaPath(runtime, image, 'image'))
+      } else if (file !== '') {
+        kind = 'file'
+        command.push('--file', mediaPath(runtime, file, 'file'))
+      } else {
+        kind = 'video'
+        const videoArg = mediaPath(runtime, video, 'video')
+        let coverArg = ''
+        if (typeof args.videoCover === 'string' && args.videoCover.trim() !== '') {
+          coverArg = mediaPath(runtime, args.videoCover.trim(), 'videoCover')
+        } else if (!isRemoteRef(videoArg)) {
+          const cover = await makeVideoCover(runtime, videoArg)
+          coverArg = cover.rel
+          cleanup = cover.cleanup
+        } else {
+          throw new Error('a video given as a remote URL or file key needs an explicit `videoCover`')
+        }
+        command.push('--video', videoArg, '--video-cover', coverArg)
+      }
+
       // Sending as the bot is what works out of the box; user sends need an extra scope.
-      const identity = identityArgs(runtime, args.as, 'bot')
-      command.push(...identity)
+      command.push(...identityArgs(runtime, args.as, 'bot'))
       if (args.idempotencyKey) command.push('--idempotency-key', str(args.idempotencyKey).slice(0, 50))
       if (args.dryRun === true) command.push('--dry-run')
 
-      const parsed = await runCliJson(runtime, command, exec)
-      const data = parsed.data ?? {}
-      const messageId = str(data.message_id ?? data.message?.message_id ?? data.messages?.[0]?.message_id)
-      const target = chatId !== '' ? chatId : userId
-      const ok = parsed.ok !== false
-      const summary = args.dryRun === true
-        ? `Dry run: would send ${markdown !== '' ? 'markdown' : 'text'} to ${target} as ${parsed.identity ?? 'auto'}.`
-        : `Sent ${markdown !== '' ? 'markdown' : 'text'} to ${target}${messageId ? ` (message ${messageId})` : ''}.`
-      return { ok, messageId, target, summary }
+      try {
+        const parsed = await runCliJson(runtime, command, exec)
+        const data = parsed.data ?? {}
+        const messageId = str(data.message_id ?? data.message?.message_id ?? data.messages?.[0]?.message_id)
+        const target = chatId !== '' ? chatId : userId
+        const ok = parsed.ok !== false
+        const summary = args.dryRun === true
+          ? `Dry run: would send ${kind} to ${target} as ${parsed.identity ?? 'auto'}.`
+          : `Sent ${kind} to ${target}${messageId ? ` (message ${messageId})` : ''}.`
+        return { ok, messageId, target, summary }
+      } finally {
+        cleanup()
+      }
     },
   })
 

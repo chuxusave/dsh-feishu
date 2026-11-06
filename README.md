@@ -16,7 +16,7 @@
 | `feishu_find_chats` | 按关键字搜群，或列出已加入的会话，拿到 `chat_id`；外部租户的群会标 `[外部群]`（自建应用发不进去） | 只读 |
 | `feishu_search_docs` | 搜云文档 / Wiki / 表格 / 多维表格，返回标题和链接 | 只读 |
 | `feishu_read_doc` | 把一个 DOCX 或 Wiki 文档读成 Markdown | 只读 |
-| `feishu_send_message` | 发文本 / Markdown 到群或私聊，支持 `dryRun` 预览 | 写 |
+| `feishu_send_message` | 发文本 / Markdown / 图片 / 文件 / 视频到群或私聊，支持 `dryRun` 预览；视频自动用 ffmpeg 抽首帧做封面 | 写 |
 
 **多维表格（Base）**
 
@@ -153,6 +153,7 @@ DSH 在安装前会对 GitHub 做一次连通性检查（默认 5 秒），网�
 - `feishu_status`、`feishu_find_chats`、`feishu_search_docs`、`feishu_read_doc`：lark-cli 1.0.98 + 飞书自建应用，全部通过。
 - `feishu_base_tables` / `feishu_base_fields` / `feishu_base_list_records`：对真实多维表格读通（字段名 → 记录对象）。
 - `feishu_send_message`、`feishu_calendar_create`：`dryRun` 通过；真实调用要求对应 scope 与会话成员关系。
+- **媒体发送验证过（bot 身份）**：`feishu_send_message` 发视频到内部群成功（`msg_type=media`，自动抽帧封面）；图片/文件同理。**user 身份发媒体不行**：本租户管理员禁止了 `im:resource:upload`（不可申请），bot 身份不受影响，但机器人必须已在目标群里。
 - **表格（Sheets）全链路验证过**：`feishu_sheets_create` 建表 → `feishu_sheets_info` 列出子表 → `feishu_sheets_write` 从 A4 写入两行 → `feishu_sheets_read` 读回一致 → 删除测试表格。
 - **待办（Tasks）全链路验证过**：`feishu_task_list` 读出真实待办 → `feishu_task_create` 建测试待办（返回 guid）→ `feishu_task_complete` 标记完成 → 删除测试待办。
 - **审批（Approvals）**：只读工具已就位；当前账号缺 `approval:task:read` scope，报错会带出授权命令。
